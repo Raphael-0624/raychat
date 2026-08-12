@@ -7,6 +7,19 @@ export interface ChatConfig {
   reasoningEffort: "low" | "medium" | "high";
 }
 
+/**
+ * Used when the System Prompt preference is left empty. Kept in sync with the
+ * `systemPrompt` default in package.json, which is what a fresh install gets.
+ */
+export const DEFAULT_SYSTEM_PROMPT =
+  "You are answering a single question inside Raycast. There is no conversation history and no way for the " +
+  "user to reply, so never ask a clarifying question — pick the most reasonable reading and say in one line " +
+  "which one you picked if it matters. Answer in the language the question was asked in. Lead with the answer: " +
+  "no preamble, no restating the question, no offer of further help. Keep it as short as the question allows; " +
+  "a fact deserves a sentence, not an essay. Format as GitHub-flavored Markdown for a narrow column — short " +
+  "paragraphs, bullets over tables, fenced code blocks with a language tag, headings only when the answer has " +
+  "genuinely separate sections.";
+
 export interface StreamHandlers {
   onContent: (chunk: string) => void;
   onReasoning: (chunk: string) => void;
@@ -34,7 +47,7 @@ export async function streamChatCompletion(
     body: JSON.stringify({
       model: config.model || "deepseek-v4-flash",
       messages: [
-        { role: "system", content: config.systemPrompt || "You are a helpful assistant." },
+        { role: "system", content: config.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
       ...(config.thinking ? { thinking: { type: "enabled" }, reasoning_effort: config.reasoningEffort || "high" } : {}),

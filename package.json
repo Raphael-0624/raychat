@@ -54,10 +54,10 @@
     {
       "name": "systemPrompt",
       "title": "System Prompt",
-      "description": "Sent as the system message on every request.",
+      "description": "Sent as the system message on every request. Tuned for one-off questions in a narrow panel — edit it freely.",
       "type": "textfield",
       "required": false,
-      "default": "You are a helpful assistant."
+      "default": "You are answering a single question inside Raycast. There is no conversation history and no way for the user to reply, so never ask a clarifying question — pick the most reasonable reading and say in one line which one you picked if it matters. Answer in the language the question was asked in. Lead with the answer: no preamble, no restating the question, no offer of further help. Keep it as short as the question allows; a fact deserves a sentence, not an essay. Format as GitHub-flavored Markdown for a narrow column — short paragraphs, bullets over tables, fenced code blocks with a language tag, headings only when the answer has genuinely separate sections."
     },
     {
       "name": "thinking",
