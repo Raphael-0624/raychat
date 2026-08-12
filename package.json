@@ -25,6 +25,64 @@
           "required": true
         }
       ]
+    },
+    {
+      "name": "agent",
+      "title": "Rafa Agent",
+      "subtitle": "RayChat",
+      "description": "Answer a question using live tools: web search, page reading, local file search and downloads.",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "task",
+          "type": "text",
+          "placeholder": "What should I look up?",
+          "required": true
+        }
+      ],
+      "preferences": [
+        {
+          "name": "tavilyApiKey",
+          "title": "Tavily API Key",
+          "description": "Enables the web_search tool. Get a free key at tavily.com. Leave empty and the tool is simply not offered to the model.",
+          "type": "password",
+          "required": false
+        },
+        {
+          "name": "agentReasoningEffort",
+          "title": "Reasoning Effort",
+          "description": "Overrides the extension-wide setting for this command. High makes each round of tool use dramatically slower, so medium is the default here.",
+          "type": "dropdown",
+          "required": false,
+          "default": "medium",
+          "data": [
+            { "title": "Low — fastest", "value": "low" },
+            { "title": "Medium — balanced", "value": "medium" },
+            { "title": "High — slow, for hard questions", "value": "high" }
+          ]
+        },
+        {
+          "name": "maxSteps",
+          "title": "Max Steps",
+          "description": "How many tool-calling rounds before the model must answer with what it has.",
+          "type": "dropdown",
+          "required": false,
+          "default": "6",
+          "data": [
+            { "title": "3 — quick lookups", "value": "3" },
+            { "title": "6 — balanced", "value": "6" },
+            { "title": "10 — dig deeper", "value": "10" }
+          ]
+        },
+        {
+          "name": "downloadDir",
+          "title": "Download Folder",
+          "description": "Where download_file saves what it fetches.",
+          "type": "textfield",
+          "required": false,
+          "default": "~/Downloads"
+        }
+      ]
     }
   ],
   "preferences": [

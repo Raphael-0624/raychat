@@ -7,6 +7,31 @@ export interface ChatConfig {
   reasoningEffort: "low" | "medium" | "high";
 }
 
+export interface ToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+export interface ToolSchema {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
+export interface StreamResult {
+  content: string;
+  reasoning: string;
+  toolCalls: ToolCall[];
+  finishReason: string | null;
+}
+
 /**
  * Used when the System Prompt preference is left empty. Kept in sync with the
  * `systemPrompt` default in package.json, which is what a fresh install gets.
@@ -20,21 +45,19 @@ export const DEFAULT_SYSTEM_PROMPT =
   "paragraphs, bullets over tables, fenced code blocks with a language tag, headings only when the answer has " +
   "genuinely separate sections.";
 
-export interface StreamHandlers {
-  onContent: (chunk: string) => void;
-  onReasoning: (chunk: string) => void;
-}
-
 /**
- * Streams a single OpenAI-compatible chat completion, pushing deltas out as they arrive.
- * Deliberately stateless: one prompt in, one answer out, no conversation history.
+ * Streams one OpenAI-compatible chat completion, pushing deltas out as they arrive
+ * and returning everything the caller needs to decide what happens next.
  */
-export async function streamChatCompletion(
-  prompt: string,
-  config: ChatConfig,
-  signal: AbortSignal,
-  handlers: StreamHandlers,
-): Promise<void> {
+export async function streamChatCompletion(options: {
+  messages: ChatMessage[];
+  config: ChatConfig;
+  signal: AbortSignal;
+  tools?: ToolSchema[];
+  onContent?: (chunk: string) => void;
+  onReasoning?: (chunk: string) => void;
+}): Promise<StreamResult> {
+  const { messages, config, signal, tools } = options;
   const baseUrl = (config.baseUrl || "https://api.deepseek.com").replace(/\/+$/, "");
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -46,10 +69,8 @@ export async function streamChatCompletion(
     },
     body: JSON.stringify({
       model: config.model || "deepseek-v4-flash",
-      messages: [
-        { role: "system", content: config.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT },
-        { role: "user", content: prompt },
-      ],
+      messages,
+      ...(tools && tools.length > 0 ? { tools } : {}),
       ...(config.thinking ? { thinking: { type: "enabled" }, reasoning_effort: config.reasoningEffort || "high" } : {}),
       stream: true,
     }),
@@ -59,6 +80,11 @@ export async function streamChatCompletion(
     const body = await response.text().catch(() => "");
     throw new Error(`HTTP ${response.status} ${response.statusText}\n${body.slice(0, 2000)}`.trim());
   }
+
+  const result: StreamResult = { content: "", reasoning: "", toolCalls: [], finishReason: null };
+  // Tool calls stream in fragments keyed by index: the first chunk carries id and
+  // name, later chunks append raw JSON to arguments one token at a time.
+  const partialCalls = new Map<number, ToolCall>();
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -73,13 +99,20 @@ export async function streamChatCompletion(
     // SSE events are separated by a blank line; keep the trailing partial event buffered.
     const events = buffer.split("\n\n");
     buffer = events.pop() ?? "";
-    for (const event of events) consumeEvent(event, handlers);
+    for (const event of events) consumeEvent(event, result, partialCalls, options);
   }
+  consumeEvent(buffer, result, partialCalls, options);
 
-  consumeEvent(buffer, handlers);
+  result.toolCalls = [...partialCalls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call);
+  return result;
 }
 
-function consumeEvent(event: string, handlers: StreamHandlers): void {
+function consumeEvent(
+  event: string,
+  result: StreamResult,
+  partialCalls: Map<number, ToolCall>,
+  handlers: { onContent?: (chunk: string) => void; onReasoning?: (chunk: string) => void },
+): void {
   for (const line of event.split("\n")) {
     if (!line.startsWith("data:")) continue;
 
@@ -87,7 +120,18 @@ function consumeEvent(event: string, handlers: StreamHandlers): void {
     if (payload === "" || payload === "[DONE]") continue;
 
     let parsed: {
-      choices?: { delta?: { content?: string | null; reasoning_content?: string | null } }[];
+      choices?: {
+        finish_reason?: string | null;
+        delta?: {
+          content?: string | null;
+          reasoning_content?: string | null;
+          tool_calls?: {
+            index: number;
+            id?: string;
+            function?: { name?: string; arguments?: string };
+          }[];
+        };
+      }[];
       error?: { message?: string };
     };
     try {
@@ -98,8 +142,30 @@ function consumeEvent(event: string, handlers: StreamHandlers): void {
 
     if (parsed.error?.message) throw new Error(parsed.error.message);
 
-    const delta = parsed.choices?.[0]?.delta;
-    if (delta?.reasoning_content) handlers.onReasoning(delta.reasoning_content);
-    if (delta?.content) handlers.onContent(delta.content);
+    const choice = parsed.choices?.[0];
+    if (!choice) continue;
+    if (choice.finish_reason) result.finishReason = choice.finish_reason;
+
+    const delta = choice.delta;
+    if (delta?.reasoning_content) {
+      result.reasoning += delta.reasoning_content;
+      handlers.onReasoning?.(delta.reasoning_content);
+    }
+    if (delta?.content) {
+      result.content += delta.content;
+      handlers.onContent?.(delta.content);
+    }
+
+    for (const fragment of delta?.tool_calls ?? []) {
+      const call = partialCalls.get(fragment.index) ?? {
+        id: "",
+        type: "function" as const,
+        function: { name: "", arguments: "" },
+      };
+      if (fragment.id) call.id = fragment.id;
+      if (fragment.function?.name) call.function.name = fragment.function.name;
+      if (fragment.function?.arguments) call.function.arguments += fragment.function.arguments;
+      partialCalls.set(fragment.index, call);
+    }
   }
 }

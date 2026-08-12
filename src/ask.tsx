@@ -9,7 +9,7 @@ import {
   openExtensionPreferences,
 } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
-import { ChatConfig, streamChatCompletion } from "./deepseek";
+import { ChatConfig, DEFAULT_SYSTEM_PROMPT, streamChatCompletion } from "./deepseek";
 
 interface Arguments {
   prompt: string;
@@ -33,7 +33,13 @@ export default function Ask(props: LaunchProps<{ arguments: Arguments }>) {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    streamChatCompletion(prompt, preferences, controller.signal, {
+    streamChatCompletion({
+      messages: [
+        { role: "system", content: preferences.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT },
+        { role: "user", content: prompt },
+      ],
+      config: preferences,
+      signal: controller.signal,
       onContent: (chunk) => setAnswer((current) => current + chunk),
       onReasoning: (chunk) => setReasoning((current) => current + chunk),
     })
