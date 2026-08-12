@@ -1,0 +1,104 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "raychat",
+  "title": "RayChat",
+  "description": "Ask DeepSeek a one-off question straight from the Raycast search bar, with streaming answers and collapsible reasoning.",
+  "icon": "command-icon.png",
+  "author": "edy",
+  "categories": [
+    "Productivity",
+    "Developer Tools"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "ask",
+      "title": "Ask Rafa",
+      "subtitle": "RayChat",
+      "description": "Send a single question to DeepSeek and stream the answer.",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "prompt",
+          "type": "text",
+          "placeholder": "Ask anything…",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "preferences": [
+    {
+      "name": "apiKey",
+      "title": "API Key",
+      "description": "Your DeepSeek API key. Stored locally in Raycast, never committed to this repository.",
+      "type": "password",
+      "required": true
+    },
+    {
+      "name": "model",
+      "title": "Model",
+      "description": "Model id passed to the chat completions endpoint.",
+      "type": "textfield",
+      "required": false,
+      "default": "deepseek-v4-flash"
+    },
+    {
+      "name": "baseUrl",
+      "title": "API Base URL",
+      "description": "OpenAI-compatible base URL. Change it to point at a proxy or another provider.",
+      "type": "textfield",
+      "required": false,
+      "default": "https://api.deepseek.com"
+    },
+    {
+      "name": "systemPrompt",
+      "title": "System Prompt",
+      "description": "Sent as the system message on every request.",
+      "type": "textfield",
+      "required": false,
+      "default": "You are a helpful assistant."
+    },
+    {
+      "name": "thinking",
+      "title": "Thinking",
+      "label": "Enable thinking",
+      "description": "Ask the model to think before answering. The reasoning is shown collapsed above the answer.",
+      "type": "checkbox",
+      "required": false,
+      "default": true
+    },
+    {
+      "name": "reasoningEffort",
+      "title": "Reasoning Effort",
+      "description": "How much effort the model spends thinking. Only used when thinking is enabled.",
+      "type": "dropdown",
+      "required": false,
+      "default": "high",
+      "data": [
+        { "title": "Low", "value": "low" },
+        { "title": "Medium", "value": "medium" },
+        { "title": "High", "value": "high" }
+      ]
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.104.1",
+    "@raycast/utils": "^2.2.1"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
